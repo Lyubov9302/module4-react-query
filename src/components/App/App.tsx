@@ -1,35 +1,49 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import ReactPaginate from "react-paginate";
+import SearchForm from "./SeacrhForm";
+import ArticleList from "./ArticleList";
+import { fetchArticles } from "../../services/articleService";
+import css from "./App.module.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [topic, setTopic] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const { data, isLoading, isError, isSuccess } = useQuery({
+    queryKey: ["articles", topic, currentPage],
+    queryFn: () => fetchArticles(topic, currentPage),
+    enabled: topic !== "",
+    placeholderData: keepPreviousData,
+  });
+
+  const totalPages = data?.nbPages ?? 0;
+
+  const handleSearch = async (newTopic: string) => {
+    setTopic(newTopic);
+    setCurrentPage(1);
+  };
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <SearchForm onSubmit={handleSearch} />
+      {isSuccess && totalPages > 1 && (
+        <ReactPaginate
+          pageCount={totalPages}
+          pageRangeDisplayed={5}
+          marginPagesDisplayed={1}
+          onPageChange={({ selected }) => setCurrentPage(selected + 1)}
+          forcePage={currentPage - 1}
+          containerClassName={css.pagination}
+          activeClassName={css.active}
+          nextLabel="→"
+          previousLabel="←"
+        />
+      )}
+      {isLoading && <p>Loading data, please wait...</p>}
+      {isError && <p>Whoops, something went wrong! Please try again!</p>}
+      {data && data.hits.length > 0 && <ArticleList items={data.hits} />}
     </>
-  )
+  );
 }
-
-export default App
